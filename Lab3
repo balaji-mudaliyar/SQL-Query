@@ -1,0 +1,88 @@
+--Lab 3-1
+/* Modify the following query to add a column that identifies the
+ frequency of repeat customers. The new column will contain
+ the following values based on the number of orders during 2007:
+
+ 'One Time' for the order count = 1
+ 'Regular' for the order count range of 2-5
+ 'Loyal' for the order count greater than >5
+ Give the new column an alias to make the report more readable.
+*/
+USE AdventureWorks2008R2
+SELECT CustomerID, ROUND(SUM(TotalDue), 2) [Total Purchase],
+COUNT(SalesOrderid) [Total # of Orders],CASE
+WHEN COUNT(SalesOrderid) > 5
+ THEN 'Loyal'
+WHEN COUNT(SalesOrderid) >=2 AND COUNT(SalesORderid) <=5
+ THEN 'Regular'
+ELSE 'One Time'
+ END AS [Customer Frequency]
+FROM Sales.SalesOrderHeader
+WHERE DATEPART(year, OrderDate) = 2007
+GROUP BY CustomerID;
+
+--Lab 3-2
+/* Modify the following query to add a ranking column with gaps
+ based on the total purchase in the descending order. Also partition
+ by territory.
+ Give the new column an alias to make the report more attractive. */
+ USE AdventureWorks2008R2
+SELECT CustomerID, RANK() OVER (PARTITION BY TerritoryID ORDER BY ROUND(SUM(TotalDue), 2) DESC)
+ as [RankByTerritorysTotalPurchase],TerritoryID, ROUND(SUM(TotalDue), 2) [TotalPurchase],
+COUNT(SalesOrderid) [Total # of Orders]
+FROM Sales.SalesOrderHeader
+WHERE DATEPART(year, OrderDate) = 2007
+GROUP BY CustomerID, TerritoryID;
+
+--Lab 3-3
+
+/* Retrieve the product id and product name of the top selling
+ (by total quantity sold) product of each date. Sort the
+ returned data by date in the ascending order. */
+
+USE AdventureWorks2008R2
+SELECT temp.productID AS HighestSoldProduct, p.Name AS ProductName, temp.orderdate AS SellingDate
+FROM
+(
+SELECT productId, oh.OrderDate, SUM(orderqty) AS TotalQuantity, RANK() OVER (PARTITION BY oh.orderdate ORDER BY sum(orderqty) DESC) AS rank
+FROM sales.SalesOrderDetail od
+JOIN sales.salesORderHEAder oh
+on oh.salesorderID=od.salesorderID
+GROUP BY ProductID,oh.orderdate
+) AS temp
+JOIN Production.Product p
+ON p.ProductID=temp.ProductID
+WHERE rank=1
+ORDER BY temp.orderdate, temp.ProductID;
+
+--lab 3-4
+/* Write a query to retrieve the territory id, territory name,
+ and total sale amount for each territory. Use TotalDue of
+ SalesOrderHeader to calculate the total sale. Sort the returned
+ data by the total sale in the descending order. */USE AdventureWorks2008R2SELECT oh.TerritoryID,t.Name,SUM(oh.TotalDue) as TotalSale
+FROM Sales.SalesOrderHeader oh
+JOIN sales.SalesTerritory t
+ON oh.TerritoryID=t.TerritoryID
+GROUP BY oh.TerritoryID,t.Name
+ORDER BY TotalSale DESC;
+
+--lab 3-5
+/* Write a query that returns the salesperson(s) who received the
+ highest bonus amount and calculate the highest bonus amount’s
+ percentage of the total bonus amount for salespeople. Your
+ solution must be able to retrieve all salespersons who received
+ the highest bonus amount assuming there may be more than one
+ salesperson who received the highest bonus amount.
+
+ Include the salesperson’s last name and first name, highest
+ bonus amount, percentage in the report. */
+ 
+SELECT SalesPersonID, p.FirstName, p.LastName, percentage AS Percentage,temp.Bonus AS Bonus 
+FROM
+(
+SELECT BusinessEntityID AS SalesPersonID, bonus AS Bonus, RANK() OVER (ORDER BY bonus DESC) AS rank, bonus/(SELECT SUM(bonus) FROM sales.SalesPerson)*100 AS percentage
+FROM sales.SalesPerson
+) AS temp
+JOIN Person.Person p
+ON SalesPersonID=p.BusinessEntityID
+WHERE rank=1;
